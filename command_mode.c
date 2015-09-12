@@ -1352,6 +1352,82 @@ static void cmd_pwd(char *arg)
 	}
 }
 
+static void ydl_getStr_fromF(const char * file, char string[1025]){
+	FILE * fp = NULL;
+	char result[1025];
+
+	fp = fopen(file,"r");
+	if(!fp){
+		error_msg("error while checking a tmp file");
+	}else{
+		fscanf(fp,"%s\n",result);
+		strcpy(string, result);
+		fclose(fp);
+	}
+
+	return ;
+}
+
+static void cmd_youtube(char *arg){
+	/*     
+		This function allows to download a music from youtube and play it
+		downloading .mp4 from youtube
+		Using FFmpeg CBR to convert .mp4 to .mp3
+	*/
+#ifdef _YOUTUBE_DL
+#ifdef linux
+	char version[1025];
+	char cmd[1025];
+	char link[1025];
+
+	system("youtube-dl -v > /tmp/cmus-ydl.check");
+	/*  clear system error output , and refresh  */
+	clearok(curscr, TRUE);
+	refresh();
+
+	ydl_getStr_fromF("/tmp/cmus-ydl.check",version);
+	/* we will read file and get the version of youtube-dl
+			if youtube-dl is not installed . we show an error msg to the user 
+			so as to install youtube-dl
+	*/
+	if(!strstr(version,".")){
+		/* youtube-dl not installed */
+		error_msg("youtube-dl not installed, install it using apt-get install youtube-dl");
+	}else{
+		snprintf(cmd,sizeof(cmd),"youtube-dl -g %s > /tmp/cmus-ydl.link", arg);
+		system(cmd);
+		clearok(curscr, TRUE);
+		refresh();
+		/*  Downlaod and convert the .mp4 file  */
+		ydl_getStr_fromF("/tmp/cmus-ydl.link",link);
+		error_msg("link %s => %s\n",arg,link);
+		if(strcmp(link,"") == 0){
+			error_msg("can't open '%s'",arg);
+		}else{
+			snprintf(cmd,sizeof(cmd),"wget \"%s\" -O video.mp4",link);
+			info_msg("Downloading..please wait");
+			system(cmd);
+			clearok(curscr, TRUE);
+			refresh();
+			info_msg("File downloaded! converting ..");
+			/* convert file */
+			snprintf(cmd,sizeof(cmd),"ffmpeg -i video.mp4 -vn -acodec libmp3lame -ac 2 -ab 160k -ar 48000  song.mp3");
+			system(cmd);
+			clearok(curscr, TRUE);
+			refresh();
+			info_msg("converted ! song.mp3");
+		}
+	}
+
+#else 
+	error_msg("no Windows version !");
+#endif 
+#else
+	error_msg("youtube-dl not supported !");
+#endif
+	return ;
+}
+
 static void cmd_rand(char *arg)
 {
 	editable_lock();
@@ -2647,6 +2723,7 @@ struct command commands[] = {
 	{ "win-update",		cmd_win_update,	0, 0, NULL,		  0, 0 },
 	{ "win-update-cache",	cmd_win_update_cache,0, 1, NULL,	  0, 0 },
 	{ "wq",			cmd_quit,	0, 1, NULL,		  0, 0 },
+	{ "youtube",		cmd_youtube,	1, 1, NULL,		  0, 0 },
 	{ NULL,			NULL,		0, 0, 0,		  0, 0 }
 };
 
